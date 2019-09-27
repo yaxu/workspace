@@ -1,0 +1,134 @@
+import Data.Maybe
+import qualified Data.Map.Strict as Map
+
+let drums = (subtract 60 <$>) <$> [("bd", 36),
+                                   ("rs", 37),
+                                   ("sd", 38),
+                                   ("sn", 38),
+                                   ("cp", 39),
+                                   ("lt", 41),
+                                   ("hc", 42),
+                                   ("ch", 42),
+                                   ("mt", 45),
+                                   ("ho", 46),
+                                   ("oh", 46),
+                                   ("ht", 48),
+                                   ("cy", 49),
+                                   ("cr", 49),                                   
+                                   ("rc", 51),
+                                   ("cb", 56),
+                                   ("cgh", 62),
+                                   ("cgm", 63),
+                                   ("cgl", 64),
+                                   ("ma", 70),
+                                   ("cl", 75)
+                                  ]
+    controls = [("begin",
+                 [("bd", 20),
+                  ("sn", 26),
+                  ("lt", 32),
+                  ("mt", 37),
+                  ("ht", 42)
+                 ]
+                ),
+                ("pan",
+                 [("bd", 21),
+                  ("sn", 27),
+                  ("lt", 33),
+                  ("mt", 38),
+                  ("ht", 43),
+                  ("rs", 47),
+                  ("cp", 49),
+                  ("cb", 41),
+                  ("ch", 54),
+                  ("oh", 57),
+                  ("cr", 60),
+                  ("cgl", 63),
+                  ("cgm", 66),
+                  ("cgh", 69),
+                  ("ma", 72),
+                  ("cl", 74)
+                 ]
+                ),
+              ("distort",
+               [("bd", 22),
+                ("sn", 28),
+                ("lt", 34),
+                ("mt", 39),
+                ("ht", 44),
+                ("cb", 52),
+                ("cgl", 64),
+                ("cgm", 67),
+                ("chh", 70)
+               ]
+              ),
+              ("tune",
+               [("bd", 23),
+                ("sn", 29),
+                ("lt", 34),
+                ("mt", 40),
+                ("ht", 45),
+                ("rs", 48),
+                ("cp", 50),
+                ("cb", 53),
+                ("ch", 55),
+                ("oh", 58),
+                ("cgl", 65),
+                ("cgm", 68),
+                ("cgh", 71),
+                 ("ma", 73),
+                 ("cl", 75)
+               ]
+              ),
+              ("tone",
+               [("bd", 24),
+                ("sn", 30),
+                ("cr", 61)
+               ]
+              ),
+              ("decay",
+               [("bd", 25),
+                ("lt", 36),
+                ("mt", 41),
+                ("ht", 46),
+                ("ch", 56),
+                ("oh", 59),
+                ("cr", 62)
+               ]
+              ),
+              ("snappy", [("sn", 31)]),
+              ("frontcut",
+               [("bd", 20),
+                ("sn", 26),
+                ("ht", 42),
+                ("mt", 37),
+                ("lt", 32)
+               ]
+              )
+             ]
+    snappy = pF "snappy"
+    tone = pF "tone"
+    tune = pF "tune"
+    frontcut = pF "frontcut"
+    
+_drumstation :: ControlMap -> [ControlMap]
+_drumstation cm = fromMaybe [] $ do s <- Map.lookup "s" cm
+                                    s' <- getS s
+                                    notenum <- Prelude.lookup (s' :: String) drums
+                                    let ccs = findccs s'
+                                    let playnote = Map.insert "note" (VF notenum) $ Map.insert "midichan" (VI 9) $ Map.insert "s" (VS "midi") $ cm
+                                    return $ ccs ++ [playnote]
+                                      where findccs s' = catMaybes $ map (findcc s') ccnames
+                                            findcc s' ccname = do ccvalue <- Map.lookup ccname cm
+                                                                  ccvalue' <- getF ccvalue
+                                                                  ccdict <- Prelude.lookup ccname controls
+                                                                  ccnum <- Prelude.lookup s' ccdict
+                                                                  return $ Map.fromList [("midichan", VI 9),
+                                                                                         ("s", VS "midi"),
+                                                                                         ("ccn", VF ccnum),
+                                                                                         ("ccv", VF $ ccvalue' * 127)
+                                                                                        ]
+                                            ccnames = map fst controls
+drumstation :: ControlPattern -> ControlPattern
+drumstation p = withEvents (concatMap combine) $ _drumstation <$> p
+  where combine event = map (\v -> event {value = v}) (value event)
