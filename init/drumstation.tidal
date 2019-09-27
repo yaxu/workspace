@@ -1,3 +1,5 @@
+-- 808 mappings for novation drumstation
+
 import Data.Maybe
 
 import qualified Data.Map.Strict as Map
@@ -133,3 +135,12 @@ let drums = (subtract 60 <$>) <$> [("bd", 36),
     drumstation :: ControlPattern -> ControlPattern
     drumstation p = withEvents (concatMap combine) $ _drumstation <$> p
       where combine event = map (\v -> event {value = v}) (value event)
+
+
+-- Use the above with a suitable 808 drumstation patch and e.g.
+
+d1 $ drumstation $ sound "{bd sn oh ch, ht lt mt}"
+  # tone (slow 4 saw)
+  # pan rand
+  # gain 1.1
+  # snappy 1
